@@ -11,13 +11,24 @@
 #include <QHBoxLayout>
 #include <QSplitter>
 #include <QLabel>
+#include <vector>
+#include <QString>
 #include "networkclient.h"
+#include "json.hpp"
+
+struct FriendInfo {
+    int id;
+    QString name;
+    QString state;
+};
 
 class ChatWindow : public QWidget
 {
     Q_OBJECT
 public:
     explicit ChatWindow(NetworkClient *client, QWidget *parent = nullptr);
+    void setFriendList(const std::vector<FriendInfo> &friends);
+    void setCurrentUserId(int id);
 
 private slots:
     void onSendClicked();
@@ -34,6 +45,7 @@ private:
     QLabel *m_currentChatLabel;
     NetworkClient *m_client;
     int m_currentChatId = -1;
+    int m_selfId = -1;
 };
 
 #endif // CHATWINDOW_H

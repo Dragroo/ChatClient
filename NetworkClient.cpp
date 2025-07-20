@@ -64,7 +64,6 @@ void NetworkClient::onSocketReadyRead() {
 
     m_recvBuffer.append(m_socket->readAll());
     qDebug() << "Buffer content:" << m_recvBuffer;
-    qDebug() << "get message in buffer.";
     // 解析缓冲区（假设 JSON 消息以换行符 '\0' 分隔，需与服务器约定）
     while (true) {
         int newlinePos = m_recvBuffer.indexOf('\0');
