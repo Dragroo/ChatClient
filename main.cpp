@@ -77,8 +77,26 @@ int main(int argc, char *argv[])
                         }
                     }
                 }
+                std::vector<GroupInfo> groupList;
+                if (responsejs.contains("groups")) {
+                    qDebug() << QString::fromStdString(responsejs["groups"].dump());
+                    for (const auto& gstr : responsejs["groups"]) {
+                        try {
+                            json gjs = json::parse(gstr.get<std::string>());
+                            GroupInfo g;
+                            g.groupid = gjs["id"].get<int>();
+                            chatWin->setCroupIds(g.groupid);
+                            g.groupname = QString::fromStdString(gjs["groupname"]);
+                            g.groupdesc = QString::fromStdString(gjs["groupdesc"]);
+                            groupList.push_back(g);
+                        } catch (...) {
+                            qWarning("Failed to parse friend entry");
+                        }
+                    }
+                }
                 chatWin->setCurrentUserId(responsejs["id"].get<int>());
                 chatWin->setFriendList(friendList);
+                chatWin->loadGroupsFromLoginResponse(groupList);
                 chatWin->show();
             }
         } else if (msgid == REG_MSG_ACK) { // REG_MSG_ACK

@@ -22,29 +22,46 @@ struct FriendInfo {
     QString state;
 };
 
+struct GroupInfo{
+    int groupid;
+    QString groupname;
+    QString groupdesc;
+};
+
 class ChatWindow : public QWidget
 {
     Q_OBJECT
 public:
     explicit ChatWindow(NetworkClient *client, QWidget *parent = nullptr);
     void setFriendList(const std::vector<FriendInfo> &friends);
+    void loadGroupsFromLoginResponse(const std::vector<GroupInfo> &groups);
     void setCurrentUserId(int id);
+    void setCroupIds(int groupId);
 
 private slots:
     void onSendClicked();
     void onFriendSelected();
+    void onGroupSelected();
     void onMessageReceived(const nlohmann::json &js);
+    void onCreateGroupClicked();
+    void onJoinGroupClicked();
+
 
 private:
     void setupUI();
 
     QListWidget *m_friendList;
+    QListWidget *m_groupList;
     QTextEdit *m_messageDisplay;
     QLineEdit *m_inputField;
     QPushButton *m_sendButton;
+    QPushButton *m_createGroupButton;
+    QPushButton *m_joinGroupButton;
+    QSet<int> userGroupIds;
     QLabel *m_currentChatLabel;
     NetworkClient *m_client;
     int m_currentChatId = -1;
+    int m_currentGroupId = -1;
     int m_selfId = -1;
 };
 
