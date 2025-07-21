@@ -12,6 +12,7 @@ class LoginWindow : public QWidget
     Q_OBJECT
 public:
     explicit LoginWindow(QWidget *parent = nullptr);
+    ~LoginWindow();
 
 signals:
     void loginRequested(int id, const QString &password);

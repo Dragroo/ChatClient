@@ -1,6 +1,6 @@
 // main.cpp
 #include <QApplication>
-#include "loginwindow.h"
+#include "loginwindownew.h"
 #include "networkclient.h"
 #include "chatwindow.h"
 #include <QObject>
@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    LoginWindow loginWin;
+    LoginWindowNew loginWinNew;
     NetworkClient client;
     ChatWindow *chatWin = nullptr;
 
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
         app.exit(-1);
     });
 
-    QObject::connect(&loginWin, &LoginWindow::loginRequested, [&](int id, const QString &pwd) {
+    QObject::connect(&loginWinNew, &LoginWindowNew::loginRequested, [&](int id, const QString &pwd) {
         json js;
         js["msgid"] = LOGIN_MSG; // LOGIN_MSG
         js["id"] = id;
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
         client.sendJson(js);
     });
 
-    QObject::connect(&loginWin, &LoginWindow::registerRequested, [&](const QString &name, const QString &pwd) {
+    QObject::connect(&loginWinNew, &LoginWindowNew::registerRequested, [&](const QString &name, const QString &pwd) {
         json js;
         js["msgid"] = REG_MSG; // REG_MSG
         js["name"] = name.toStdString();
@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
         int msgid = responsejs["msgid"];
         if (msgid == LOGIN_MSG_ACK) { // LOGIN_MSG_ACK
             if (responsejs["errno"].get<int>() != 0) {
-                QMessageBox::warning(&loginWin, "Login Failed", QString::fromStdString(responsejs["errmsg"]));
+                QMessageBox::warning(&loginWinNew, "Login Failed", QString::fromStdString(responsejs["errmsg"]));
             } else {
-                QMessageBox::information(&loginWin, "Login Success", "Welcome back!");
-                loginWin.hide();
+                QMessageBox::information(&loginWinNew, "Login Success", "Welcome back!");
+                loginWinNew.hide();
                 chatWin = new ChatWindow(&client);
                 // 提取好友列表
                 std::vector<FriendInfo> friendList;
@@ -88,6 +88,21 @@ int main(int argc, char *argv[])
                             chatWin->setCroupIds(g.groupid);
                             g.groupname = QString::fromStdString(gjs["groupname"]);
                             g.groupdesc = QString::fromStdString(gjs["groupdesc"]);
+                            if (gjs.contains("users")) {
+                                for (const auto& userStr : gjs["users"]) {
+                                    try {
+                                        json userJson = json::parse(userStr.get<std::string>());
+                                        GroupUserInfo u;
+                                        u.id = userJson["id"].get<int>();
+                                        u.name = QString::fromStdString(userJson["name"]);
+                                        u.state = QString::fromStdString(userJson["state"]);
+                                        u.role = QString::fromStdString(userJson["role"]);
+                                        g.members.push_back(u);
+                                    } catch (...) {
+                                        qWarning("Failed to parse group user entry");
+                                    }
+                                }
+                            }
                             groupList.push_back(g);
                         } catch (...) {
                             qWarning("Failed to parse friend entry");
@@ -101,14 +116,14 @@ int main(int argc, char *argv[])
             }
         } else if (msgid == REG_MSG_ACK) { // REG_MSG_ACK
             if (responsejs["errno"].get<int>() != 0) {
-                QMessageBox::warning(&loginWin, "Register Failed", "Username already exists.");
+                QMessageBox::warning(&loginWinNew, "Register Failed", "Username already exists.");
             } else {
                 int id = responsejs["id"].get<int>();
-                QMessageBox::information(&loginWin, "Register Success", "Your user ID is: " + QString::number(id));
+                QMessageBox::information(&loginWinNew, "Register Success", "Your user ID is: " + QString::number(id));
             }
         }
     });
 
-    loginWin.show();
+    loginWinNew.show();
     return app.exec();
 }

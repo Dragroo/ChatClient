@@ -22,10 +22,19 @@ struct FriendInfo {
     QString state;
 };
 
-struct GroupInfo{
+// GroupInfo.h or wherever你定义的结构体
+struct GroupUserInfo {
+    int id;
+    QString name;
+    QString state;
+    QString role;
+};
+
+struct GroupInfo {
     int groupid;
     QString groupname;
     QString groupdesc;
+    std::vector<GroupUserInfo> members;  // 新增
 };
 
 class ChatWindow : public QWidget
@@ -45,6 +54,7 @@ private slots:
     void onMessageReceived(const nlohmann::json &js);
     void onCreateGroupClicked();
     void onJoinGroupClicked();
+    void onGroupItemDoubleClicked(QListWidgetItem *item);
 
 
 private:

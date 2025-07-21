@@ -14,6 +14,7 @@
 using json = nlohmann::json;
 static QMap<QPair<int, int>, QStringList> chatHistory;
 static QMap<QPair<int, int>, QStringList> groupHistory;
+static QMap<int, QStringList> groupMembers;
 static int oneChat;
 
 
@@ -21,51 +22,195 @@ ChatWindow::ChatWindow(NetworkClient *client, QWidget *parent)
     : QWidget(parent), m_client(client)
 {
     setWindowTitle("Chat Client");
-    resize(800, 500);
+    resize(900, 600); // 增加窗口尺寸
     setupUI();
 
     connect(m_sendButton, &QPushButton::clicked, this, &ChatWindow::onSendClicked);
     connect(m_friendList, &QListWidget::itemClicked, this, &ChatWindow::onFriendSelected);
     connect(m_groupList, &QListWidget::itemClicked, this, &ChatWindow::onGroupSelected);
     connect(m_client, &NetworkClient::jsonReceived, this, &ChatWindow::onMessageReceived);
+    connect(m_groupList, &QListWidget::itemDoubleClicked, this, &ChatWindow::onGroupItemDoubleClicked);
 }
 
 void ChatWindow::setupUI()
 {
+    // 应用全局样式
+    this->setStyleSheet(""
+                        "QWidget { background-color: #f5f7fa; }"
+                        "QListWidget {"
+                        "   background-color: white;"
+                        "   border: 1px solid #e4e7eb;"
+                        "   border-radius: 8px;"
+                        "   padding: 5px;"
+                        "   font-size: 13px;"
+                        "}"
+                        "QListWidget::item {"
+                        "   padding: 8px 10px;"
+                        "   border-bottom: 1px solid #f0f2f5;"
+                        "}"
+                        "QListWidget::item:selected {"
+                        "   background-color: #e6f0ff;"
+                        "   color: #1a73e8;"
+                        "   border-radius: 4px;"
+                        "}"
+                        "QTextEdit {"
+                        "   background-color: white;"
+                        "   border: 1px solid #e4e7eb;"
+                        "   border-radius: 8px;"
+                        "   padding: 12px;"
+                        "   font-size: 14px;"
+                        "}"
+                        "QLineEdit {"
+                        "   background-color: white;"
+                        "   border: 1px solid #e4e7eb;"
+                        "   border-radius: 8px;"
+                        "   padding: 12px;"
+                        "   font-size: 14px;"
+                        "}"
+                        "QLineEdit:focus { border: 1px solid #1a73e8; }"
+                        "QLabel {"
+                        "   color: #1c1e21;"
+                        "   font-size: 14px;"
+                        "}");
     m_friendList = new QListWidget;
     m_groupList = new QListWidget;
     m_messageDisplay = new QTextEdit;
+    m_friendList->setStyleSheet("QListWidget { min-width: 200px; }");
+    m_groupList->setStyleSheet("QListWidget { min-width: 200px; }");
     m_messageDisplay->setReadOnly(true);
+
     m_inputField = new QLineEdit;
+    m_inputField->setPlaceholderText("Type a message...");
+
     m_sendButton = new QPushButton("Send");
+    m_sendButton->setStyleSheet(
+        "QPushButton {"
+        "   background-color: #1a73e8;"
+        "   color: white;"
+        "   border: none;"
+        "   border-radius: 8px;"
+        "   padding: 10px 20px;"
+        "   font-weight: 600;"
+        "   min-width: 80px;"
+        "}"
+        "QPushButton:hover { background-color: #1669d6; }"
+        "QPushButton:pressed { background-color: #1457b8; }"
+        );
+
     m_createGroupButton = new QPushButton("Create Group");
+    m_createGroupButton->setStyleSheet(
+        "QPushButton {"
+        "   background-color: #34a853;"
+        "   color: white;"
+        "   border: none;"
+        "   border-radius: 8px;"
+        "   padding: 10px;"
+        "   font-weight: 600;"
+        "}"
+        "QPushButton:hover { background-color: #2d9347; }"
+        "QPushButton:pressed { background-color: #267d3b; }"
+        );
+
     m_joinGroupButton = new QPushButton("Join Group");
+    m_joinGroupButton->setStyleSheet(
+        "QPushButton {"
+        "   background-color: #fbbc05;"
+        "   color: white;"
+        "   border: none;"
+        "   border-radius: 8px;"
+        "   padding: 10px;"
+        "   font-weight: 600;"
+        "}"
+        "QPushButton:hover { background-color: #e6ab04; }"
+        "QPushButton:pressed { background-color: #d19b03; }"
+        );
+
     m_currentChatLabel = new QLabel("No friend selected");
+    m_currentChatLabel->setStyleSheet(
+        "QLabel {"
+        "   font-size: 16px;"
+        "   font-weight: 600;"
+        "   color: #1c1e21;"
+        "   padding: 10px 0;"
+        "   border-bottom: 1px solid #e4e7eb;"
+        "}"
+        );
 
     connect(m_createGroupButton, &QPushButton::clicked, this, &ChatWindow::onCreateGroupClicked);
     connect(m_joinGroupButton, &QPushButton::clicked, this, &ChatWindow::onJoinGroupClicked);
 
     QVBoxLayout *leftLayout = new QVBoxLayout;
-    leftLayout->addWidget(new QLabel("Friends"));
+    // 好友列表部分
+    QLabel *friendsLabel = new QLabel("Friends");
+    friendsLabel->setStyleSheet("font-weight: 600; font-size: 15px; color: #1c1e21;");
+    leftLayout->addWidget(friendsLabel);
     leftLayout->addWidget(m_friendList);
-    leftLayout->addWidget(new QLabel("Groups"));
-    leftLayout->addWidget(m_groupList);
-    leftLayout->addWidget(m_createGroupButton);
-    leftLayout->addWidget(m_joinGroupButton);
 
+    // 群组列表部分
+    QLabel *groupsLabel = new QLabel("Groups");
+    groupsLabel->setStyleSheet("font-weight: 600; font-size: 15px; color: #1c1e21;");
+    leftLayout->addWidget(groupsLabel);
+    leftLayout->addWidget(m_groupList);
+
+    // 按钮容器
+    QHBoxLayout *buttonLayout = new QHBoxLayout;
+    buttonLayout->setSpacing(10);
+    buttonLayout->addWidget(m_createGroupButton);
+    buttonLayout->addWidget(m_joinGroupButton);
+    leftLayout->addLayout(buttonLayout);
+
+    leftLayout->setSpacing(15);
+    leftLayout->setContentsMargins(10, 10, 10, 10);
+
+    // 左侧容器框架
+    QFrame *leftFrame = new QFrame;
+    leftFrame->setLayout(leftLayout);
+    leftFrame->setStyleSheet(
+        "QFrame {"
+        "   background-color: white;"
+        "   border-radius: 12px;"
+        "   border: 1px solid #e4e7eb;"
+        "}"
+        );
+
+
+
+    // 聊天区域布局
     QVBoxLayout *chatLayout = new QVBoxLayout;
+    chatLayout->setSpacing(15);
+    chatLayout->setContentsMargins(15, 15, 15, 15);
+
+    // 聊天区域容器框架
+    QFrame *chatFrame = new QFrame;
+    chatFrame->setLayout(chatLayout);
+    chatFrame->setStyleSheet(
+        "QFrame {"
+        "   background-color: white;"
+        "   border-radius: 12px;"
+        "   border: 1px solid #e4e7eb;"
+        "}"
+        );
     chatLayout->addWidget(m_currentChatLabel);
     chatLayout->addWidget(m_messageDisplay);
+
+
+    // 输入区域布局
     QHBoxLayout *inputLayout = new QHBoxLayout;
-    inputLayout->addWidget(m_inputField);
+    inputLayout->setSpacing(10);
+    inputLayout->addWidget(m_inputField, 1); // 输入框可扩展
     inputLayout->addWidget(m_sendButton);
     chatLayout->addLayout(inputLayout);
 
+    // 主布局
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
-    mainLayout->addLayout(leftLayout, 2);
-    mainLayout->addLayout(chatLayout, 5);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
+    mainLayout->addWidget(leftFrame, 2);
+    mainLayout->addWidget(chatFrame, 5);
 
     setLayout(mainLayout);
+
+
 }
 void ChatWindow::onFriendSelected()
 {
@@ -219,10 +364,27 @@ void ChatWindow::loadGroupsFromLoginResponse(const std::vector<GroupInfo> &group
     m_groupList->clear();
     for (const auto &g : groups)
     {
+        // QStringList members;
+        // json userjs = json::parse(g.groupmembers.toStdString());
+        // for (const auto &userStr : userjs) {
+        //     json userJson = json::parse(userStr.get<std::string>());
+        //     int uid = userJson["id"].get<int>();
+        //     QString uname = QString::fromStdString(userJson["name"]);
+        //     QString ustate = QString::fromStdString(userJson["state"]);
+        //     QString urole = QString::fromStdString(userJson["role"]);
+        //     members.append(QString("%1 (%2) [%3]").arg(uname).arg(urole).arg(ustate));
+        // }
+        // groupMembers[g.groupid] = members;
         QString display = QString::number(g.groupid) + ":" + g.groupname + " [" + g.groupdesc + "]";
         m_groupList->addItem(display);
+        QStringList memberList;
+        for (const auto &u : g.members) {
+            memberList.append(QString("%1 (%2) [%3]").arg(u.name).arg(u.role).arg(u.state));
+        }
+        groupMembers[g.groupid] = memberList;
     }
 }
+
 
 void ChatWindow::setCurrentUserId(int id)
 {
@@ -262,4 +424,20 @@ void ChatWindow::onJoinGroupClicked()
     js["id"] = m_selfId;
     js["groupid"] = groupId;
     m_client->sendJson(js);
+}
+
+void ChatWindow::onGroupItemDoubleClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+    QString text = item->text();
+    int groupId = text.section(":", 0, 0).toInt();
+
+    if (!groupMembers.contains(groupId)) {
+        QMessageBox::information(this, "Group Members", "No member info available.");
+        return;
+    }
+
+    QStringList members = groupMembers[groupId];
+    QString info = members.join("\n");
+    QMessageBox::information(this, QString("Group %1 Members").arg(groupId), info);
 }
